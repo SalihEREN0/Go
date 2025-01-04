@@ -11,10 +11,16 @@ const (
 )
 
 func main() {
-	mask := 1 << 0
+	mask := 3
 
-	result := KB | Num(mask) // setting 0. bit to 1
+	result := KB ^ Num(mask) // Toggling the 0. and 1. bit
 
 	fmt.Println(KB)
+	fmt.Println(result)
+
+	mask2 := 1 << 10
+
+	result = result ^ Num(mask2) // Toggling the 10. bit
+
 	fmt.Println(result)
 }
