@@ -2,31 +2,36 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 	"sync"
-	"time"
 )
 
 func main() {
 	var wg sync.WaitGroup
+	var urls = []string{
+		"https://www.youtube.com/",
+		"https://www.google.com",
+		"https://go.dev",
+	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < 100; i++ {
-			fmt.Println("Number from first function: ", i)
-			time.Sleep(100 * time.Millisecond)
-		}
-	}()
+	for _, url := range urls {
+		wg.Add(1)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < 100; i++ {
-			fmt.Println("Number from second function: ", i)
-			time.Sleep(100 * time.Millisecond)
-		}
-	}()
+		go func(url string) {
+			defer wg.Done()
+			resp, err := http.Get(url)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			defer resp.Body.Close()
+
+			fmt.Println(url, resp.Status)
+		}(url)
+	}
 
 	wg.Wait()
+
 	fmt.Println("Done")
 }
