@@ -11,6 +11,10 @@ const (
 )
 
 func main() {
+	mask := 1 << 0
+
+	result := KB | Num(mask) // setting 0. bit to 1
+
 	fmt.Println(KB)
-	fmt.Println(MB)
+	fmt.Println(result)
 }
