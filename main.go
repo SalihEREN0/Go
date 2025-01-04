@@ -1,26 +1,32 @@
 package main
 
-import "fmt"
-
-type Num int
-
-const (
-	_ Num = 1 << (10 * iota)
-	KB
-	MB
+import (
+	"fmt"
+	"sync"
+	"time"
 )
 
 func main() {
-	mask := 3
+	var wg sync.WaitGroup
 
-	result := KB ^ Num(mask) // Toggling the 0. and 1. bit
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			fmt.Println("Number from first function: ", i)
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
 
-	fmt.Println(KB)
-	fmt.Println(result)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			fmt.Println("Number from second function: ", i)
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
 
-	mask2 := 1 << 10
-
-	result = result ^ Num(mask2) // Toggling the 10. bit
-
-	fmt.Println(result)
+	wg.Wait()
+	fmt.Println("Done")
 }
