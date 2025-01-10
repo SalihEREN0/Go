@@ -1,45 +1,54 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net"
+	"time"
 )
 
+type Server struct {
+	listenAddr string
+	ln         net.Listener
+	quich      chan struct{}
+}
+
+func newServer(addr string) *Server {
+	return &Server{
+		listenAddr: addr,
+		quich:      make(chan struct{}),
+	}
+}
+
+func Start(s *Server) error {
+	ln, err := net.Listen("tcp", s.listenAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer ln.Close()
+	s.ln = ln
+
+	go func() {
+		time.Sleep(5 * time.Second)
+		close(s.quich)
+	}()
+
+	<-s.quich
+	return nil
+}
+
 func main() {
-	// Create a UDP address to listen on
-	addr, err := net.ResolveUDPAddr("udp", ":12345")
-	if err != nil {
-		fmt.Println("Error resolving address:", err)
-		return
-	}
+	ser := newServer(":1234")
+	ser2 := newServer(":1235")
+	ser3 := newServer(":1236")
+	go log.Fatal(Start(ser))
+	time.Sleep(1 * time.Second)
+	go log.Fatal(Start(ser2))
+	time.Sleep(1 * time.Second)
+	go log.Fatal(Start(ser3))
+	time.Sleep(1 * time.Second)
 
-	// Create a UDP connection
-	conn, err := net.ListenUDP("udp", addr)
-	if err != nil {
-		fmt.Println("Error creating connection:", err)
-		return
-	}
-	defer conn.Close()
+	defer ser.ln.Close()
+	defer ser2.ln.Close()
+	defer ser3.ln.Close()
 
-	fmt.Println("Server is listening on port 12345...")
-
-	buffer := make([]byte, 1024)
-
-	for {
-		// Read incoming message
-		n, clientAddr, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			fmt.Println("Error reading from UDP:", err)
-			continue
-		}
-
-		message := string(buffer[:n])
-		fmt.Printf("Received message: '%s' from %s\n", message, clientAddr)
-
-		// Send response to client
-		_, err = conn.WriteToUDP([]byte("Message received"), clientAddr)
-		if err != nil {
-			fmt.Println("Error sending response:", err)
-		}
-	}
 }
