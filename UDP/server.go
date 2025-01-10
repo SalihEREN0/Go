@@ -3,12 +3,13 @@ package main
 import (
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
 type Server struct {
 	listenAddr string
-	ln         net.Listener
+	conn       net.PacketConn
 	quich      chan struct{}
 }
 
@@ -19,36 +20,51 @@ func newServer(addr string) *Server {
 	}
 }
 
-func Start(s *Server) error {
-	ln, err := net.Listen("tcp", s.listenAddr)
+func Start(s *Server, wg *sync.WaitGroup) error {
+	defer wg.Done()
+
+	conn, err := net.ListenPacket("udp", s.listenAddr)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	defer ln.Close()
-	s.ln = ln
+	defer conn.Close()
+	s.conn = conn
+	log.Printf("Server started on %s\n", s.listenAddr)
 
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		close(s.quich)
 	}()
 
 	<-s.quich
+	log.Printf("Server stopped on %s\n", s.listenAddr)
 	return nil
 }
 
 func main() {
+	var wg sync.WaitGroup
+
 	ser := newServer(":1234")
 	ser2 := newServer(":1235")
 	ser3 := newServer(":1236")
-	go log.Fatal(Start(ser))
-	time.Sleep(1 * time.Second)
-	go log.Fatal(Start(ser2))
-	time.Sleep(1 * time.Second)
-	go log.Fatal(Start(ser3))
-	time.Sleep(1 * time.Second)
 
-	defer ser.ln.Close()
-	defer ser2.ln.Close()
-	defer ser3.ln.Close()
+	wg.Add(3)
 
+	go func() {
+		if err := Start(ser, &wg); err != nil {
+			log.Fatal(err)
+		}
+	}()
+	go func() {
+		if err := Start(ser2, &wg); err != nil {
+			log.Fatal(err)
+		}
+	}()
+	go func() {
+		if err := Start(ser3, &wg); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	wg.Wait()
 }
