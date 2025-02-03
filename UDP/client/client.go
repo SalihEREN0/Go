@@ -36,29 +36,24 @@ func runClient(clientID int) {
 	}
 	defer conn.Close()
 
+	reader := bufio.NewReader(os.Stdin)
 	for {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf("Client %d: Enter message to send: ", clientID)
+		fmt.Printf("Client %d: Enter message: ", clientID)
+		text, _ := reader.ReadString('\n')
 
-		message, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Printf("Client %d: Error reading input: %v\n", clientID, err)
-			return
-		}
-
-		_, err = conn.Write([]byte(message))
+		_, err = conn.Write([]byte(text))
 		if err != nil {
 			fmt.Printf("Client %d: Error sending message: %v\n", clientID, err)
 			return
 		}
 
 		buffer := make([]byte, 1024)
-		n, _, err := conn.ReadFromUDP(buffer)
+		n, addr, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			fmt.Printf("Client %d: Error reading response: %v\n", clientID, err)
+			fmt.Printf("Client %d: Error receiving message: %v\n", clientID, err)
 			return
 		}
 
-		fmt.Printf("Client %d: Response from server: %s\n", clientID, string(buffer[:n]))
+		fmt.Printf("Client %d: Received %d bytes from %s: %s\n", clientID, n, addr, string(buffer[:n]))
 	}
 }

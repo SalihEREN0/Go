@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"net/http"
 	"sync"
 )
 
@@ -68,11 +69,11 @@ func (s *Server) addClient(addr net.Addr) {
 func (s *Server) broadcast(message []byte, sender net.Addr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, clientAddr := range s.clients {
-		if clientAddr.String() != sender.String() {
-			_, err := s.conn.WriteTo(message, clientAddr)
+	for addrStr, addr := range s.clients {
+		if addrStr != sender.String() {
+			_, err := s.conn.WriteTo(message, addr)
 			if err != nil {
-				log.Printf("Error broadcasting to %s: %v\n", clientAddr, err)
+				log.Printf("Error broadcasting to %s: %v\n", addr, err)
 			}
 		}
 	}
@@ -80,12 +81,20 @@ func (s *Server) broadcast(message []byte, sender net.Addr) {
 
 func main() {
 	var wg sync.WaitGroup
-
 	server := newServer(":1234")
-
 	wg.Add(1)
 	go func() {
 		if err := server.Start(&wg); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	fs := http.FileServer(http.Dir("../static"))
+	http.Handle("/", fs)
+
+	log.Println("HTTP server started on :8080")
+	go func() {
+		if err := http.ListenAndServe(":8080", nil); err != nil {
 			log.Fatal(err)
 		}
 	}()
