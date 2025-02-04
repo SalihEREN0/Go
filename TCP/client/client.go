@@ -4,43 +4,70 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 )
 
-func handleConnection(conn net.Conn, wg *sync.WaitGroup) {
-	defer wg.Done()
-	defer conn.Close()
+const (
+	CONN_PORT = ":3333"
+	CONN_TYPE = "tcp"
 
+	MSG_DISCONNECT = "Disconnected from the server.\n"
+)
+
+var wg sync.WaitGroup
+
+// Reads from the socket and outputs to the console.
+func Read(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
-		message, err := reader.ReadString('\n')
+		str, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Connection closed")
+			fmt.Printf(MSG_DISCONNECT)
+			wg.Done()
 			return
 		}
-		fmt.Print("Message from server: " + message)
+		fmt.Print(str)
 	}
 }
 
-func main() {
-	var wg sync.WaitGroup
+// Reads from Stdin, and outputs to the socket.
+func Write(conn net.Conn) {
+	reader := bufio.NewReader(os.Stdin)
+	writer := bufio.NewWriter(conn)
 
-	for i := 0; i < 5; i++ { // Create 5 clients
-		wg.Add(1)
-		go func(clientID int) {
-			defer wg.Done()
+	for {
+		str, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
-			conn, err := net.Dial("tcp", "localhost:8080")
-			if err != nil {
-				fmt.Println("Error connecting:", err)
-				return
-			}
-			defer conn.Close()
-
-			fmt.Fprintf(conn, "Hello from client %d\n", clientID)
-			handleConnection(conn, &wg)
-		}(i)
+		_, err = writer.WriteString(str)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = writer.Flush()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	}
+}
+
+// Starts up a read and write thread which connect to the server through the
+// a socket connection.
+func main() {
+	wg.Add(1)
+
+	conn, err := net.Dial(CONN_TYPE, CONN_PORT)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	go Read(conn)
+	go Write(conn)
 
 	wg.Wait()
 }
