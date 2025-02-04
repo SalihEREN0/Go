@@ -1,103 +1,43 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net"
-	"net/http"
-	"sync"
 )
 
-type Server struct {
-	listenAddr string
-	conn       net.PacketConn
-	quit       chan struct{}
-	clients    map[string]net.Addr
-	mu         sync.Mutex
-}
-
-func newServer(addr string) *Server {
-	return &Server{
-		listenAddr: addr,
-		quit:       make(chan struct{}),
-		clients:    make(map[string]net.Addr),
-	}
-}
-
-func (s *Server) Start(wg *sync.WaitGroup) error {
-	defer wg.Done()
-
-	conn, err := net.ListenPacket("udp", s.listenAddr)
+func NewServer() {
+	go fmt.Println("Enter the port number")
+	var port string
+	go fmt.Scanln(&port)
+	Port := ":" + port
+	s, err := net.ResolveUDPAddr("udp", Port)
 	if err != nil {
-		return err
+		go fmt.Println("Error resolving UDP address:", err)
+		return
 	}
-	s.conn = conn
-	defer s.conn.Close()
+	conn, err := net.ListenUDP("udp", s)
+	if err != nil {
+		go fmt.Println("Error setting up UDP connection:", err)
+		return
+	}
+	defer conn.Close()
 
-	log.Printf("Server started on %s\n", s.listenAddr)
-	go s.listen()
-
-	<-s.quit
-	return nil
-}
-
-func (s *Server) listen() {
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 2048)
 	for {
-		n, addr, err := s.conn.ReadFrom(buffer)
+		n, addr, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			log.Println("Error reading from connection:", err)
-			return
+			go fmt.Println("Error reading from UDP connection:", err)
+			continue
 		}
-
-		s.addClient(addr)
-
-		log.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
-
-		s.broadcast(buffer[:n], addr)
-	}
-}
-
-func (s *Server) addClient(addr net.Addr) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, exists := s.clients[addr.String()]; !exists {
-		log.Printf("New client added: %s\n", addr)
-		s.clients[addr.String()] = addr
-	}
-}
-
-func (s *Server) broadcast(message []byte, sender net.Addr) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for addrStr, addr := range s.clients {
-		if addrStr != sender.String() {
-			_, err := s.conn.WriteTo(message, addr)
-			if err != nil {
-				log.Printf("Error broadcasting to %s: %v\n", addr, err)
-			}
-		}
+		go fmt.Printf("Received %s from %s\n", string(buffer[:n]), addr)
 	}
 }
 
 func main() {
-	var wg sync.WaitGroup
-	server := newServer(":1234")
-	wg.Add(1)
-	go func() {
-		if err := server.Start(&wg); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	fs := http.FileServer(http.Dir("../static"))
-	http.Handle("/", fs)
-
-	log.Println("HTTP server started on :8080")
-	go func() {
-		if err := http.ListenAndServe(":8080", nil); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	wg.Wait()
+	garb := 0
+	fmt.Println("Enter 1 to exit")
+	for garb != 1 {
+		go NewServer()
+		go fmt.Scanln(&garb)
+	}
 }

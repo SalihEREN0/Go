@@ -1,59 +1,55 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 	"os"
-	"sync"
 )
 
 func main() {
-	var wg sync.WaitGroup
-
-	for i := 0; i < 3; i++ {
-		wg.Add(1)
-		go func(clientID int) {
-			defer wg.Done()
-			runClient(clientID)
-		}(i)
+	// Set up UDP client
+	serverAddress := "localhost:8080"
+	udpAddr, err := net.ResolveUDPAddr("udp", serverAddress)
+	if err != nil {
+		fmt.Println("Error resolving UDP address:", err)
+		os.Exit(1)
 	}
 
-	wg.Wait()
-}
-
-func runClient(clientID int) {
-	serverAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:1234")
+	conn, err := net.DialUDP("udp", nil, udpAddr)
 	if err != nil {
-		fmt.Printf("Client %d: Error resolving server address: %v\n", clientID, err)
-		return
-	}
-
-	conn, err := net.DialUDP("udp", nil, serverAddr)
-	if err != nil {
-		fmt.Printf("Client %d: Error connecting to server: %v\n", clientID, err)
-		return
+		fmt.Println("Error setting up UDP connection:", err)
+		os.Exit(1)
 	}
 	defer conn.Close()
 
-	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Client connected to", serverAddress)
+
+	// Read input from the user and send to server
 	for {
-		fmt.Printf("Client %d: Enter message: ", clientID)
-		text, _ := reader.ReadString('\n')
+		fmt.Print("Enter message (or 'exit' to quit): ")
+		var message string
+		fmt.Scanln(&message)
 
-		_, err = conn.Write([]byte(text))
-		if err != nil {
-			fmt.Printf("Client %d: Error sending message: %v\n", clientID, err)
-			return
+		if message == "exit" {
+			break
 		}
 
+		// Send message to server
+		_, err = conn.Write([]byte(message))
+		if err != nil {
+			fmt.Println("Error sending message:", err)
+			continue
+		}
+
+		// Receive response from server
 		buffer := make([]byte, 1024)
-		n, addr, err := conn.ReadFromUDP(buffer)
+		n, err := conn.Read(buffer)
 		if err != nil {
-			fmt.Printf("Client %d: Error receiving message: %v\n", clientID, err)
-			return
+			fmt.Println("Error reading response:", err)
+			continue
 		}
 
-		fmt.Printf("Client %d: Received %d bytes from %s: %s\n", clientID, n, addr, string(buffer[:n]))
+		// Print the server's response
+		fmt.Printf("Server response: %s\n", string(buffer[:n]))
 	}
 }
