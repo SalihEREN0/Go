@@ -1,0 +1,23 @@
+FROM golang:1.23.4-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod ./
+RUN go mod tidy
+
+COPY server/ ./server/
+COPY client/ ./client/
+
+RUN go build -o /app/server ./server/server.go
+
+RUN go build -o /app/client ./client/client.go
+
+RUN chmod +x /app/server /app/client
+
+FROM alpine:latest
+
+WORKDIR /app
+
+COPY --from=builder /app/server /app/client /app/
+
+CMD ["/app/server"]
