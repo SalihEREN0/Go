@@ -1,0 +1,14 @@
+version: latest
+
+services:
+  server:
+    build: ./server
+    container_name: server
+    ports:
+      - "8080:8080"
+
+  client:
+    build: ./client
+    container_name: client
+    depends_on:
+      - server
