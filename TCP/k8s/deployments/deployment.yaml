@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-app
+  template:
+    metadata:
+      labels:
+        app: chat-app
+    spec:
+      containers:
+      - name: chat-server
+        image: your-dockerhub-user/chat-server:latest
+        ports:
+          - containerPort: 3000
+        env:
+          - name: SERVER_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: chat-config
+                key: SERVER_PORT
+          - name: SERVER_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: chat-secrets
+                key: SERVER_SECRET_KEY
+      - name: chat-client
+        image: your-dockerhub-user/chat-client:latest
+        ports:
+          - containerPort: 4000
+        env:
+          - name: SERVER_ADDR
+            value: "chat-server:3000"

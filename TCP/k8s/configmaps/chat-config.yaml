@@ -3,6 +3,4 @@ kind: ConfigMap
 metadata:
   name: chat-config
 data:
-  SERVER_PORT: "8080"
-  CLIENT_PORT: "3000"
-  DATABASE_URL: "mongodb://chat-db-service:27017"
+  SERVER_PORT: "3000"  
