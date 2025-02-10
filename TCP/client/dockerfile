@@ -1,14 +1,14 @@
-FROM golang:alpine AS builder
+FROM golang:alpine as builder
 
 WORKDIR /app
-COPY go.mod ./
-RUN go mod download
 
+COPY go.mod ./
+RUN go mod tidy
 COPY . .
-RUN go build -o client client.go
+RUN go build -o client .
 
 FROM alpine:latest
-WORKDIR /app
+WORKDIR /root/
 COPY --from=builder /app/client .
 
-CMD ["/app/client"]	
+CMD ["./client"]
